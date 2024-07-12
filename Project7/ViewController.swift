@@ -10,9 +10,12 @@ import UIKit
 class ViewController: UITableViewController {
     
     var petitions = [Petition]()
+    var petitionsToDisplay = [Petition]()
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(barButtonSystemItem: .search, target: self, action: #selector(filterPetitions))
         
         let urlString: String
         
@@ -32,6 +35,30 @@ class ViewController: UITableViewController {
         showError()
     }
     
+    @objc func filterPetitions() {
+        let ac = UIAlertController(title: "This data comes from the We The People API of the Whitehouse", message: "Type a term to search for petitions with it", preferredStyle: .alert)
+        ac.addTextField()
+        
+        let searchAction = UIAlertAction(title: "Search", style: .default) { [weak self, weak ac] _ in
+            guard let searchTerm = ac?.textFields?.first?.text?.lowercased() else { return }
+            guard let petitions = self?.petitions else { return }
+            
+            if self?.petitions != nil {
+                if searchTerm.isEmpty {
+                    self?.petitionsToDisplay = petitions
+                } else {
+                    self?.petitionsToDisplay = petitions.filter { petition in
+                        petition.title.lowercased().contains(searchTerm) || petition.body.lowercased().contains(searchTerm)
+                    }
+                }
+            }
+            self?.tableView.reloadData()
+        }
+        
+        ac.addAction(searchAction)
+        present(ac, animated: true)
+    }
+    
     func showError() {
         let ac = UIAlertController(title: "Loading error", message: "There was a problem loading the feed; please check your connection and try againg.", preferredStyle: .alert)
         ac.addAction(UIAlertAction(title: "OK", style: .default))
@@ -43,17 +70,18 @@ class ViewController: UITableViewController {
         
         if let jsonPetitions = try? decoder.decode(Petitions.self, from: json) {
             petitions = jsonPetitions.results
+            petitionsToDisplay = jsonPetitions.results
             tableView.reloadData()
         }
     }
 
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        petitions.count
+        petitionsToDisplay.count
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
-        let petition = petitions[indexPath.row]
+        let petition = petitionsToDisplay[indexPath.row]
         cell.textLabel?.text = petition.title
         cell.detailTextLabel?.text = petition.body
         return cell
@@ -61,7 +89,7 @@ class ViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         let vc = DetailViewController()
-        vc.detailItem = petitions[indexPath.row]
+        vc.detailItem = petitionsToDisplay[indexPath.row]
         navigationController?.pushViewController(vc, animated: true)
     }
 }
